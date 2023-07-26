@@ -7,7 +7,7 @@ import numpy as np
 file = 'cards_02.png'
 
 card_symbols = {
-    0: "Hearts", 1: "Diamonds", 2: "Clubs", 3: "Spades"
+    0: "H", 1: "D", 2: "C", 3: "S"
 }
 
 if len(sys.argv) == 2:
@@ -147,8 +147,9 @@ for c in cnts:
             }
             output.append(card_info)
 
-# Print the output
-for index, card_info in enumerate(output):
-    print(
-        f"Card {index + 1}: Value: {card_info['value']}, Symbol: {card_symbols[card_info['symbol']]}")
+def card_to_string(card_info, card_symbols):
+    return f"{card_info['value']}{card_symbols[card_info['symbol']]}"
 
+# Print the output
+output_string = "".join(card_to_string(card_info, card_symbols) for card_info in output)
+print(output_string)
