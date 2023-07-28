@@ -119,7 +119,10 @@ class HandAnalyzer(object):
         for hold_l in product([True, False], repeat=5):
             deck_state = DiscardValue(held_d=self.hold(held=hold_l))
             ways_to_win = deck_state.count_wins(**count_wins_kwargs)
-            expected_val = sum(self.payouts[win] * cnt / deck_state.exp_val_denom for win, cnt in ways_to_win.items())
+            expected_val = sum(
+                self.payouts[win] * cnt / deck_state.exp_val_denom
+                for win, cnt in ways_to_win.items()
+            )
 
             ways_to_win["expected_val"] = expected_val
             hand = "".join(
@@ -130,8 +133,11 @@ class HandAnalyzer(object):
         if return_full_analysis:
             return win_props
         besthold_tup = self.best_disc(win_props)
-        return {besthold_tup[0]: win_props[besthold_tup[0]]} \
-            if return_bestdisc_cnts else besthold_tup
+        return (
+            {besthold_tup[0]: win_props[besthold_tup[0]]}
+            if return_bestdisc_cnts
+            else besthold_tup
+        )
 
     @staticmethod
     def best_disc(results):
@@ -412,8 +418,8 @@ class DiscardValue(object):
                     converse = set(SUITS).difference(s)
                     undrawable_suits[r].update(converse)
                 else:
-                    raise Exception(f'held_d has unexpected key: {hd}')
-        po_strts, _ = self._potential_straights(include_royals = False)
+                    raise Exception(f"held_d has unexpected key: {hd}")
+        po_strts, _ = self._potential_straights(include_royals=False)
         for strt in po_strts:
             if strt is not None:
                 strt_miss_suits = set()
@@ -623,7 +629,9 @@ class DiscardValue(object):
                 new_nhrg = self.nonheld_rank_grps.copy()
                 new_nhrg[avail] -= 1
 
-                pair_ways = sum(prcnt * comb(pavail, 2) for pavail, prcnt in new_nhrg.items())
+                pair_ways = sum(
+                    prcnt * comb(pavail, 2) for pavail, prcnt in new_nhrg.items()
+                )
                 ways_cnt += rtrips * pair_ways
             return ways_cnt
 
