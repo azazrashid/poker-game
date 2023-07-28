@@ -110,7 +110,6 @@ dmypy.json
 .sonar
 .idea
 
-*.png
+
 *.mp4
-*.jpg
 *.xml
