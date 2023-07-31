@@ -1,6 +1,7 @@
 import os
 import shutil
 
+import cv2
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -55,6 +56,8 @@ def card_name(card_str):
 
     return ", ".join(card_names)
 
+suits = ['H', 'C', 'D', 'S']
+ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 
 @app.post("/poker-analyze/")
 async def poker_analyze(image: UploadFile = File(...)):
@@ -81,6 +84,13 @@ async def poker_analyze(image: UploadFile = File(...)):
         # suits = detect(image_path)
         all_cards = extract_cards(image=image_path)
         all_suits = find_suits(all_images=all_cards)
+        if len(all_suits) < 10:
+            all_suits = all_suits.upper()
+            num_padding = 10 - len(all_suits)
+            padding_suits = suits[:num_padding // 2]
+            padding_ranks = ranks[:num_padding - len(padding_suits)]
+            all_suits += ''.join(rank + suit for rank, suit in
+                                zip(padding_ranks, padding_suits))
         hand = HandAnalyzer(all_suits).analyze(
             return_full_analysis=False, return_bestdisc_cnts=True
         )
