@@ -1,10 +1,12 @@
+import base64
 import os
 import shutil
 
 import cv2
 from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from poker_analyzer.hands_analyzer import HandAnalyzer
 from card_detection.detect_suits import find_suits
 from card_detection.detect_cards import extract_cards
@@ -22,22 +24,13 @@ app.add_middleware(
 
 def card_name(card_str):
     card_values = {
-        "2": "Two",
-        "3": "Three",
-        "4": "Four",
-        "5": "Five",
-        "6": "Six",
-        "7": "Seven",
-        "8": "Eight",
-        "9": "Nine",
-        "10": "Ten",
-        "J": "Jack",
-        "Q": "Queen",
-        "K": "King",
-        "A": "Ace",
+        "J": "jack",
+        "Q": "queen",
+        "K": "king",
+        "A": "ace",
     }
 
-    card_suits = {"h": "Hearts", "d": "Diamonds", "c": "Clubs", "s": "Spades"}
+    card_suits = {"h": "hearts", "d": "diamonds", "c": "clubs", "s": "spades"}
 
     def get_card_name(card):
         value_str = card[:-1]
@@ -46,7 +39,7 @@ def card_name(card_str):
         card_value = card_values.get(value_str, value_str)
         card_suit = card_suits.get(suit_str, suit_str)
 
-        return f"{card_value} of {card_suit}"
+        return f"{card_value}_of_{card_suit}"
 
     # Split the input string into two characters each
     card_str_list = [card_str[i : i + 2] for i in range(0, len(card_str), 2)]
@@ -54,7 +47,7 @@ def card_name(card_str):
     # Process each card and combine their names
     card_names = [get_card_name(card) for card in card_str_list]
 
-    return ", ".join(card_names)
+    return card_names
 
 suits = ['H', 'C', 'D', 'S']
 ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
@@ -96,12 +89,20 @@ async def poker_analyze(image: UploadFile = File(...)):
         )
         best_hand = list(hand.keys())[0]
         best_hand = best_hand.replace("X", "").replace("x", "")
-        hand = card_name(best_hand)
-
+        cards = card_name(best_hand)
         # Remove the image file after processing
         os.remove(image_path)
 
-        return JSONResponse(content={"Optimal Hand to play": hand}, status_code=200)
+        image_responses = []
+        for card in cards:
+            image_path = os.path.join("Deck", f"{card}.png")
+            if os.path.exists(image_path):
+                # convert to binary
+                with open(image_path, "rb") as out_file:
+                    byte_arr = out_file.read()
+                    byte_arr = base64.b64encode(byte_arr)
+                image_responses.append(byte_arr)
+        return jsonable_encoder(image_responses)
     except HTTPException as e:
         raise e
     except Exception as e:
