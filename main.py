@@ -95,6 +95,7 @@ async def poker_analyze(image: UploadFile = File(...)):
     except HTTPException as e:
         raise e
     except Exception as e:
+        print(e)
         # Remove the image file in case of an error
         if os.path.exists(image_path):
             os.remove(image_path)

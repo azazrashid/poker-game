@@ -156,7 +156,7 @@ def split_rank_and_suit(cropped_images):
 
 
 def eval_rank_suite(rank_suit_mapping, modelRanks, modelSuits):
-    pred = []
+    guess = ""
 
     for rank, suit in rank_suit_mapping:
         # resize the rank and suit to our desired size
@@ -192,15 +192,10 @@ def eval_rank_suite(rank_suit_mapping, modelRanks, modelSuits):
             bestSuitName,
             round(((bestSuitPer + bestRankPer) / totalPer) * 100),
         )
-        guess2 = "{}{}".format(
-            sbestRankName,
-            sbestSuitName,
-            round(((sbestSuitPer + sbestRankPer) / totalPer) * 100),
-        )
 
-        # pred.append('{}\n{}'.format(guess1, guess2))
+        guess = guess1
 
-    return guess1
+    return guess
 
 
 def show_text(pred, four_corners_set, img):
