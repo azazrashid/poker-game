@@ -3,15 +3,12 @@ import os
 import shutil
 import traceback
 
-import cv2
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
-from poker_analyzer.hands_analyzer import HandAnalyzer
-from card_detection.detect_suits import find_suits
-from card_detection.detect_cards import extract_cards
+
 from card_detect.infer import detect_cards
+from poker_analyzer.hands_analyzer import HandAnalyzer
 
 app = FastAPI()
 
@@ -29,6 +26,8 @@ def card_name(card_str):
         "Q": "queen",
         "K": "king",
         "A": "ace",
+        "T": 10,
+        "t": 10
     }
 
     card_suits = {"h": "hearts", "d": "diamonds", "c": "clubs", "s": "spades"}
@@ -99,6 +98,11 @@ async def poker_analyze(image: UploadFile = File(...)):
                     byte_arr = out_file.read()
                     byte_arr = base64.b64encode(byte_arr)
                 image_responses.append(byte_arr)
+        if os.path.exists(image_path):
+            os.remove(image_path)
+
+        if os.path.exists("runs/detect/predict"):
+            shutil.rmtree("runs/detect/predict")
         return jsonable_encoder(image_responses)
     except HTTPException as e:
         raise e
@@ -115,6 +119,3 @@ async def poker_analyze(image: UploadFile = File(...)):
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the image."
         )
-
-
-ase = detect_cards("IMG20230801182227.jpg")
