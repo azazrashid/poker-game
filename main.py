@@ -22,35 +22,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-import random
-
-def complete_card_string(card_string):
-    # Create a list of all possible ranks and suits
-    ranks = ['2', '3', '4', '5', '6', '7', '8', '9', 'J', 'Q', 'K', 'A']
-    suits = ['H', 'C', 'D', 'S']
-    max_length = 10
-    # Convert the input string to uppercase (just to ensure consistency)
-    card_string = card_string.upper()
-
-    # Check if the input string contains exactly 10 cards with the character '10'
-    if '10' in card_string:
-        if len(card_string) == 11:
-            return card_string[:11]
-        else:
-            max_length = 11
-    # Calculate how many characters need to be added to make it 10 characters long
-    chars_to_add = max(max_length - len(card_string), 0)
-
-    # Randomly select and add characters until the final string is 10 characters long
-    while chars_to_add > 0:
-        rank = random.choice(ranks)
-        suit = random.choice(suits)
-        card_string += rank + suit
-        chars_to_add -= 2
-
-    # Return the final 10-character string
-    return card_string[:10]
-
 
 def card_name(card_str):
     card_values = {
@@ -107,10 +78,13 @@ async def poker_analyze(image: UploadFile = File(...)):
         # suits = detect(image_path)
         all_cards = extract_cards(image=image_path)
         all_suits = find_suits(all_images=all_cards)
-
-        print(all_suits)
-        all_suits = complete_card_string(all_suits)
-        print(all_suits)
+        if len(all_suits) < 10:
+            all_suits = all_suits.upper()
+            num_padding = 10 - len(all_suits)
+            padding_suits = suits[:num_padding // 2]
+            padding_ranks = ranks[:num_padding - len(padding_suits)]
+            all_suits += ''.join(rank + suit for rank, suit in
+                                zip(padding_ranks, padding_suits))
         hand = HandAnalyzer(all_suits).analyze(
             return_full_analysis=False, return_bestdisc_cnts=True
         )
@@ -137,7 +111,7 @@ async def poker_analyze(image: UploadFile = File(...)):
         trace = traceback.format_exc()
         # Append the traceback to the exception message
         error_msg = f"{str(e)}\n{trace}"
-        print(e, error_msg)
+        print(error_msg)
         # Remove the image file in case of an error
         if os.path.exists(image_path):
             os.remove(image_path)
