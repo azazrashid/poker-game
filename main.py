@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from poker_analyzer.hands_analyzer import HandAnalyzer
 from card_detection.detect_suits import find_suits
 from card_detection.detect_cards import extract_cards
-
+from card_detect.infer import detect_cards
 
 app = FastAPI()
 
@@ -74,17 +74,13 @@ async def poker_analyze(image: UploadFile = File(...)):
         image_path = os.path.join(temp_dir, image.filename)
         with open(image_path, "wb") as f:
             shutil.copyfileobj(image.file, f)
-
-        # suits = detect(image_path)
-        all_cards = extract_cards(image=image_path)
-        all_suits = find_suits(all_images=all_cards)
+        all_suits = detect_cards(image_path)
         if len(all_suits) < 10:
-            all_suits = all_suits.upper()
-            num_padding = 10 - len(all_suits)
-            padding_suits = suits[:num_padding // 2]
-            padding_ranks = ranks[:num_padding - len(padding_suits)]
-            all_suits += ''.join(rank + suit for rank, suit in
-                                zip(padding_ranks, padding_suits))
+            raise HTTPException(
+                status_code=500,
+                detail="Not enough images."
+            )
+
         hand = HandAnalyzer(all_suits).analyze(
             return_full_analysis=False, return_bestdisc_cnts=True
         )
@@ -93,7 +89,7 @@ async def poker_analyze(image: UploadFile = File(...)):
         cards = card_name(best_hand)
         # Remove the image file after processing
         os.remove(image_path)
-
+        print(cards)
         image_responses = []
         for card in cards:
             image_path = os.path.join("Deck", f"{card}.png")
@@ -119,3 +115,6 @@ async def poker_analyze(image: UploadFile = File(...)):
         raise HTTPException(
             status_code=500, detail="An error occurred while processing the image."
         )
+
+
+ase = detect_cards("IMG20230801182227.jpg")
