@@ -3,10 +3,9 @@ import os
 import shutil
 import traceback
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
-
 from card_detect.infer import detect_cards
 from poker_analyzer.hands_analyzer import HandAnalyzer
 
@@ -60,7 +59,7 @@ async def poker_analyze(image: UploadFile = File(...)):
         file_ext = os.path.splitext(image.filename)[1]
         if file_ext.lower() not in allowed_formats:
             raise HTTPException(
-                status_code=400,
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Invalid file format. Only image files "
                 "(jpg, jpeg, png) are allowed.",
             )
@@ -76,8 +75,8 @@ async def poker_analyze(image: UploadFile = File(...)):
         all_suits = detect_cards(image_path)
         if len(all_suits) < 10:
             raise HTTPException(
-                status_code=500,
-                detail="Not enough images."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Images not detected. Please take a clearer image."
             )
 
         hand = HandAnalyzer(all_suits).analyze(
@@ -91,18 +90,16 @@ async def poker_analyze(image: UploadFile = File(...)):
         print(cards)
         image_responses = []
         for card in cards:
-            image_path = os.path.join("Deck", f"{card}.png")
-            if os.path.exists(image_path):
+            card_path = os.path.join("Deck", f"{card}.png")
+            if os.path.exists(card_path):
                 # convert to binary
-                with open(image_path, "rb") as out_file:
+                with open(card_path, "rb") as out_file:
                     byte_arr = out_file.read()
                     byte_arr = base64.b64encode(byte_arr)
                 image_responses.append(byte_arr)
-        if os.path.exists(image_path):
-            os.remove(image_path)
 
-        if os.path.exists("runs/detect/predict"):
-            shutil.rmtree("runs/detect/predict")
+        if os.path.exists("runs/"):
+            shutil.rmtree("runs/")
         return jsonable_encoder(image_responses)
     except HTTPException as e:
         raise e
@@ -117,5 +114,6 @@ async def poker_analyze(image: UploadFile = File(...)):
             os.remove(image_path)
         # Return an error response if something goes wrong
         raise HTTPException(
-            status_code=500, detail="An error occurred while processing the image."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while processing the image."
         )
