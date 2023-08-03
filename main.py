@@ -3,15 +3,11 @@ import os
 import shutil
 import traceback
 
-import cv2
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+from card_detect.infer import detect_cards
 from poker_analyzer.hands_analyzer import HandAnalyzer
-from card_detection.detect_suits import find_suits
-from card_detection.detect_cards import extract_cards
-
 
 app = FastAPI()
 
@@ -29,6 +25,8 @@ def card_name(card_str):
         "Q": "queen",
         "K": "king",
         "A": "ace",
+        "T": 10,
+        "t": 10
     }
 
     card_suits = {"h": "hearts", "d": "diamonds", "c": "clubs", "s": "spades"}
@@ -61,7 +59,7 @@ async def poker_analyze(image: UploadFile = File(...)):
         file_ext = os.path.splitext(image.filename)[1]
         if file_ext.lower() not in allowed_formats:
             raise HTTPException(
-                status_code=400,
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Invalid file format. Only image files "
                 "(jpg, jpeg, png) are allowed.",
             )
@@ -74,17 +72,13 @@ async def poker_analyze(image: UploadFile = File(...)):
         image_path = os.path.join(temp_dir, image.filename)
         with open(image_path, "wb") as f:
             shutil.copyfileobj(image.file, f)
-
-        # suits = detect(image_path)
-        all_cards = extract_cards(image=image_path)
-        all_suits = find_suits(all_images=all_cards)
+        all_suits = detect_cards(image_path)
         if len(all_suits) < 10:
-            all_suits = all_suits.upper()
-            num_padding = 10 - len(all_suits)
-            padding_suits = suits[:num_padding // 2]
-            padding_ranks = ranks[:num_padding - len(padding_suits)]
-            all_suits += ''.join(rank + suit for rank, suit in
-                                zip(padding_ranks, padding_suits))
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Images not detected. Please take a clearer image."
+            )
+
         hand = HandAnalyzer(all_suits).analyze(
             return_full_analysis=False, return_bestdisc_cnts=True
         )
@@ -93,16 +87,19 @@ async def poker_analyze(image: UploadFile = File(...)):
         cards = card_name(best_hand)
         # Remove the image file after processing
         os.remove(image_path)
-
+        print(cards)
         image_responses = []
         for card in cards:
-            image_path = os.path.join("Deck", f"{card}.png")
-            if os.path.exists(image_path):
+            card_path = os.path.join("Deck", f"{card}.png")
+            if os.path.exists(card_path):
                 # convert to binary
-                with open(image_path, "rb") as out_file:
+                with open(card_path, "rb") as out_file:
                     byte_arr = out_file.read()
                     byte_arr = base64.b64encode(byte_arr)
                 image_responses.append(byte_arr)
+
+        if os.path.exists("runs/"):
+            shutil.rmtree("runs/")
         return jsonable_encoder(image_responses)
     except HTTPException as e:
         raise e
@@ -117,5 +114,6 @@ async def poker_analyze(image: UploadFile = File(...)):
             os.remove(image_path)
         # Return an error response if something goes wrong
         raise HTTPException(
-            status_code=500, detail="An error occurred while processing the image."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while processing the image."
         )
